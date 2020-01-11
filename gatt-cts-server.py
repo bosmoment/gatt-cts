@@ -286,7 +286,7 @@ class CurrentTimeCharacteristic(Characteristic):
 
     def current_time_bytes(self):
         dt = time.localtime()
-        year = dt.tm_year.to_bytes(2, 'big')
+        year = dt.tm_year.to_bytes(2, 'little')
         value = list([dbus.Byte(b) for b in year])
         value.append(dbus.Byte(dt.tm_mon))
         value.append(dbus.Byte(dt.tm_mday))
