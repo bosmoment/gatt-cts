@@ -5,6 +5,8 @@
 # GATT server example.
 
 
+import argparse
+from contextlib import suppress
 import dbus
 import dbus.exceptions
 import dbus.mainloop.glib
@@ -52,11 +54,11 @@ class Application(dbus.service.Object):
     """
     org.bluez.GattApplication1 interface implementation
     """
-    def __init__(self, bus):
+    def __init__(self, bus, **kwargs):
         self.path = '/'
         self.services = []
         dbus.service.Object.__init__(self, bus, self.path)
-        self.add_service(CurrentTimeService(bus, 0))
+        self.add_service(CurrentTimeService(bus, 0, **kwargs))
 
     def get_path(self):
         return dbus.ObjectPath(self.path)
@@ -260,24 +262,29 @@ class CurrentTimeService(Service):
     """
     CURRENT_TIME_UUID = '1805'
 
-    def __init__(self, bus, index):
+    def __init__(self, bus, index, **kwargs):
         Service.__init__(self, bus, index, self.CURRENT_TIME_UUID, True)
-        self.add_characteristic(CurrentTimeCharacteristic(bus, 0, self))
+        self.add_characteristic(CurrentTimeCharacteristic(bus, 0, self, **kwargs))
 
 
 class CurrentTimeCharacteristic(Characteristic):
     CURRENT_TIME_UUID = '2a2B'
 
-    def __init__(self, bus, index, service):
+    def __init__(self, bus, index, service, **kwargs):
         Characteristic.__init__(
                 self, bus, index,
                 self.CURRENT_TIME_UUID,
                 ['read', 'notify'],
                 service)
         self.notifying = False
-        GLib.timeout_add(5000, self.notify_time)
 
-    def current_time_bytes(self):
+        with suppress(KeyError):
+            notify_period = kwargs["notify_period"]
+            if notify_period is not None:
+                GLib.timeout_add(notify_period * 1000, self.notify_time)
+
+    @staticmethod
+    def current_time_bytes():
         dt = datetime.datetime.now()
         year = dt.year.to_bytes(2, 'little')
         value = list([dbus.Byte(b) for b in year])
@@ -307,7 +314,7 @@ class CurrentTimeCharacteristic(Characteristic):
 
     def ReadValue(self, options):
         value = self.current_time_bytes()
-        self.logger.info("Supplying time")
+        self.logger.info(f"Supplying time to {options['device']}")
         return value
 
     def StartNotify(self):
@@ -315,18 +322,16 @@ class CurrentTimeCharacteristic(Characteristic):
             self.logger.warning('Already notifying, nothing to do')
             return
         self.notifying = True
-        self.notify_current_time()
 
     def StopNotify(self):
         if not self.notifying:
             self.logger.warning('Not notifying, nothing to do')
             return
-
         self.notifying = False
 
 
 class Server(object):
-    def __init__(self):
+    def __init__(self, notify_period=None):
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
         bus = dbus.SystemBus()
@@ -340,7 +345,7 @@ class Server(object):
                 bus.get_object(BLUEZ_SERVICE_NAME, adapter),
                 GATT_MANAGER_IFACE)
 
-        app = Application(bus)
+        app = Application(bus, notify_period=notify_period)
 
         self.mainloop = GLib.MainLoop()
 
@@ -375,6 +380,19 @@ class Server(object):
         return None
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run Bluez CTS server",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--notify-period", type=int, default=None,
+                        help="Notify clients of the time periodically (N.B. This is non-conformant). Unit: seconds")
+    parser.add_argument("-l", "--log-level", choices=["ERROR", "WARNING", "INFO", "DEBUG"],
+                        type=lambda s: s.upper(),
+                        help="Set console log level (all messages with this level and higher are printed)",
+                        default="INFO")
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    logging.basicConfig(format='%(asctime)s | %(levelname)-7s | %(name)-30s | %(message)s', level=logging.INFO)
-    Server().run()
+    args = parse_args()
+    logging.basicConfig(format='%(asctime)s | %(levelname)-7s | %(name)-30s | %(message)s', level=args.log_level)
+    Server(args.notify_period).run()
