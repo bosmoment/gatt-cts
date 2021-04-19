@@ -16,10 +16,7 @@ try:
 except ImportError:
     import gobject as GObject
 
-# TODO: remove
-# import sys
-
-import time
+import datetime
 
 BLUEZ_SERVICE_NAME = 'org.bluez'
 GATT_MANAGER_IFACE = 'org.bluez.GattManager1'
@@ -285,16 +282,16 @@ class CurrentTimeCharacteristic(Characteristic):
         GObject.timeout_add(5000, self.notify_time)
 
     def current_time_bytes(self):
-        dt = time.localtime()
-        year = dt.tm_year.to_bytes(2, 'little')
+        dt = datetime.datetime.now()
+        year = dt.year.to_bytes(2, 'little')
         value = list([dbus.Byte(b) for b in year])
-        value.append(dbus.Byte(dt.tm_mon))
-        value.append(dbus.Byte(dt.tm_mday))
-        value.append(dbus.Byte(dt.tm_hour))
-        value.append(dbus.Byte(dt.tm_min))
-        value.append(dbus.Byte(dt.tm_sec))
-        value.append(dbus.Byte(dt.tm_wday))
-        value.append(dbus.Byte(0))
+        value.append(dbus.Byte(dt.month))
+        value.append(dbus.Byte(dt.day))
+        value.append(dbus.Byte(dt.hour))
+        value.append(dbus.Byte(dt.minute))
+        value.append(dbus.Byte(dt.second))
+        value.append(dbus.Byte(dt.isoweekday()))
+        value.append(dbus.Byte(int((dt.microsecond * 1e-6) * 256)))
         value.append(dbus.Byte(1))
         return value
 
