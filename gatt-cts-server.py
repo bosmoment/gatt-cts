@@ -12,9 +12,9 @@ import dbus.service
 import logging
 
 try:
-    from gi.repository import GObject
+    from gi.repository import GLib
 except ImportError:
-    import gobject as GObject
+    import glib as GLib
 
 import datetime
 
@@ -275,7 +275,7 @@ class CurrentTimeCharacteristic(Characteristic):
                 ['read', 'notify'],
                 service)
         self.notifying = False
-        GObject.timeout_add(5000, self.notify_time)
+        GLib.timeout_add(5000, self.notify_time)
 
     def current_time_bytes(self):
         dt = datetime.datetime.now()
@@ -342,7 +342,7 @@ class Server(object):
 
         app = Application(bus)
 
-        self.mainloop = GObject.MainLoop()
+        self.mainloop = GLib.MainLoop()
 
         logging.info('Registering GATT application...')
 
