@@ -140,6 +140,7 @@ class Characteristic(dbus.service.Object):
         self.service = service
         self.flags = flags
         self.descriptors = []
+        self.logger = logging.getLogger(type(self).__name__)
         dbus.service.Object.__init__(self, bus, self.path)
 
     def get_properties(self):
@@ -182,22 +183,22 @@ class Characteristic(dbus.service.Object):
                          in_signature='a{sv}',
                          out_signature='ay')
     def ReadValue(self, options):
-        logging.error('Default ReadValue called, returning error')
+        self.logger.error('Default ReadValue called, returning error')
         raise NotSupportedException()
 
     @dbus.service.method(GATT_CHRC_IFACE, in_signature='aya{sv}')
     def WriteValue(self, value, options):
-        logging.error('Default WriteValue called, returning error')
+        self.logger.error('Default WriteValue called, returning error')
         raise NotSupportedException()
 
     @dbus.service.method(GATT_CHRC_IFACE)
     def StartNotify(self):
-        logging.error('Default StartNotify called, returning error')
+        self.logger.error('Default StartNotify called, returning error')
         raise NotSupportedException()
 
     @dbus.service.method(GATT_CHRC_IFACE)
     def StopNotify(self):
-        logging.error('Default StopNotify called, returning error')
+        self.logger.error('Default StopNotify called, returning error')
         raise NotSupportedException()
 
     @dbus.service.signal(DBUS_PROP_IFACE,
@@ -216,6 +217,7 @@ class Descriptor(dbus.service.Object):
         self.uuid = uuid
         self.flags = flags
         self.chrc = characteristic
+        self.logger = logging.getLogger(type(self).__name__)
         dbus.service.Object.__init__(self, bus, self.path)
 
     def get_properties(self):
@@ -243,12 +245,12 @@ class Descriptor(dbus.service.Object):
                          in_signature='a{sv}',
                          out_signature='ay')
     def ReadValue(self, options):
-        logging.error('Default ReadValue called, returning error')
+        self.logger.error('Default ReadValue called, returning error')
         raise NotSupportedException()
 
     @dbus.service.method(GATT_DESC_IFACE, in_signature='aya{sv}')
     def WriteValue(self, value, options):
-        logging.error('Default WriteValue called, returning error')
+        self.logger.error('Default WriteValue called, returning error')
         raise NotSupportedException()
 
 
@@ -299,25 +301,25 @@ class CurrentTimeCharacteristic(Characteristic):
     def notify_time(self):
         if not self.notifying:
             return True
-        logging.info('Notifying current local time')
+        self.logger.info('Notifying current local time')
         self.notify_current_time()
         return True
 
     def ReadValue(self, options):
         value = self.current_time_bytes()
-        logging.info("Supplying time")
+        self.logger.info("Supplying time")
         return value
 
     def StartNotify(self):
         if self.notifying:
-            logging.warning('Already notifying, nothing to do')
+            self.logger.warning('Already notifying, nothing to do')
             return
         self.notifying = True
         self.notify_current_time()
 
     def StopNotify(self):
         if not self.notifying:
-            logging.warning('Not notifying, nothing to do')
+            self.logger.warning('Not notifying, nothing to do')
             return
 
         self.notifying = False
@@ -325,9 +327,6 @@ class CurrentTimeCharacteristic(Characteristic):
 
 class Server(object):
     def __init__(self):
-        logger = logging.getLogger('')
-        logger.setLevel(logging.INFO)
-
         dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
 
         bus = dbus.SystemBus()
@@ -377,4 +376,5 @@ class Server(object):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(asctime)s | %(levelname)-7s | %(name)-30s | %(message)s', level=logging.INFO)
     Server().run()
