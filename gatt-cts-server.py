@@ -323,25 +323,7 @@ class CurrentTimeCharacteristic(Characteristic):
         self.notifying = False
 
 
-class server(object):
-    def register_app_cb(self):
-        logging.info('GATT application registered')
-
-    def register_app_error_cb(self, error):
-        logging.error('Failed to register application: ' + str(error))
-        self.mainloop.quit()
-
-    def find_adapter(self, bus):
-        remote_om = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, '/'),
-                                   DBUS_OM_IFACE)
-        objects = remote_om.GetManagedObjects()
-
-        for o, props in objects.items():
-            if GATT_MANAGER_IFACE in props.keys():
-                return o
-
-        return None
-
+class Server(object):
     def __init__(self):
         logger = logging.getLogger('')
         logger.setLevel(logging.INFO)
@@ -373,6 +355,26 @@ class server(object):
     def run(self):
         self.mainloop.run()
 
+    @staticmethod
+    def register_app_cb():
+        logging.info('GATT application registered')
+
+    def register_app_error_cb(self, error):
+        logging.error('Failed to register application: ' + str(error))
+        self.mainloop.quit()
+
+    @staticmethod
+    def find_adapter(bus):
+        remote_om = dbus.Interface(bus.get_object(BLUEZ_SERVICE_NAME, '/'),
+                                   DBUS_OM_IFACE)
+        objects = remote_om.GetManagedObjects()
+
+        for o, props in objects.items():
+            if GATT_MANAGER_IFACE in props.keys():
+                return o
+
+        return None
+
 
 if __name__ == '__main__':
-    server().run()
+    Server().run()
