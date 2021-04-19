@@ -254,8 +254,7 @@ class Descriptor(dbus.service.Object):
 
 class CurrentTimeService(Service):
     """
-    Fake Battery service that emulates a draining battery.
-
+    BT SIG CTS v1.1.0
     """
     CURRENT_TIME_UUID = '1805'
 
@@ -265,11 +264,6 @@ class CurrentTimeService(Service):
 
 
 class CurrentTimeCharacteristic(Characteristic):
-    """
-    Fake Battery Level characteristic. The battery level is drained by 2 points
-    every 5 seconds.
-
-    """
     CURRENT_TIME_UUID = '2a2B'
 
     def __init__(self, bus, index, service):
@@ -330,7 +324,6 @@ class CurrentTimeCharacteristic(Characteristic):
 
 
 class server(object):
-
     def register_app_cb(self):
         logging.info('GATT application registered')
 
