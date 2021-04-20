@@ -19,6 +19,7 @@ except ImportError:
     import glib as GLib
 
 import datetime
+import time
 
 BLUEZ_SERVICE_NAME = 'org.bluez'
 GATT_MANAGER_IFACE = 'org.bluez.GattManager1'
@@ -265,6 +266,7 @@ class CurrentTimeService(Service):
     def __init__(self, bus, index, **kwargs):
         Service.__init__(self, bus, index, self.CURRENT_TIME_UUID, True)
         self.add_characteristic(CurrentTimeCharacteristic(bus, 0, self, **kwargs))
+        self.add_characteristic(LocalTimeInformationCharacteristic(bus, 1, self, **kwargs))
 
 
 class CurrentTimeCharacteristic(Characteristic):
@@ -283,8 +285,7 @@ class CurrentTimeCharacteristic(Characteristic):
             if notify_period is not None:
                 GLib.timeout_add(notify_period * 1000, self.notify_time)
 
-    @staticmethod
-    def current_time_bytes():
+    def current_time_bytes(self):
         dt = datetime.datetime.now()
         year = dt.year.to_bytes(2, 'little')
         value = list([dbus.Byte(b) for b in year])
@@ -296,6 +297,9 @@ class CurrentTimeCharacteristic(Characteristic):
         value.append(dbus.Byte(dt.isoweekday()))
         value.append(dbus.Byte(int((dt.microsecond * 1e-6) * 256)))
         value.append(dbus.Byte(1))
+
+        self.logger.debug(f"CT: {dt.isoformat(timespec='microseconds')}")
+
         return value
 
     def notify_current_time(self):
@@ -328,6 +332,35 @@ class CurrentTimeCharacteristic(Characteristic):
             self.logger.warning('Not notifying, nothing to do')
             return
         self.notifying = False
+
+
+class LocalTimeInformationCharacteristic(Characteristic):
+    LOCAL_TIME_INFORMATION_UUID = '2a0f'
+
+    def __init__(self, bus, index, service, **kwargs):
+        Characteristic.__init__(
+                self, bus, index,
+                self.LOCAL_TIME_INFORMATION_UUID,
+                ['read'],
+                service)
+
+    def local_time_information_bytes(self):
+        time.tzset()  # Reset the time conversion rules, so that timezone and altzone are always correct
+
+        time_zone_offset = datetime.timedelta(seconds=-time.timezone)
+        dst_offset = datetime.timedelta(seconds=-time.altzone) - time_zone_offset
+        time_zone_offset_15min = int(time_zone_offset / datetime.timedelta(minutes=15))
+        dst_offset_15_min = int(dst_offset / datetime.timedelta(minutes=15))
+
+        self.logger.debug(f"LTI: TZ offset = {time_zone_offset} ({time_zone_offset_15min:+d}); "
+                          f"DST offset = {dst_offset} ({dst_offset_15_min:+d})")
+        return [dbus.Byte(time_zone_offset_15min.to_bytes(1, 'little', signed=True)[0]),
+                dbus.Byte(dst_offset_15_min)]
+
+    def ReadValue(self, options):
+        value = self.local_time_information_bytes()
+        self.logger.info(f"Supplying local time information to {options['device']}")
+        return value
 
 
 class Server(object):
