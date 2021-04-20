@@ -286,6 +286,8 @@ class CurrentTimeCharacteristic(Characteristic):
                 GLib.timeout_add(notify_period * 1000, self.notify_time)
 
     def current_time_bytes(self):
+        time.tzset()  # Reset the time conversion rules, so that the local time provided by now() is always correct
+
         dt = datetime.datetime.now()
         year = dt.year.to_bytes(2, 'little')
         value = list([dbus.Byte(b) for b in year])
